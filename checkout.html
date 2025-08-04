@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Checkout - My Store</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      background-color: #f4f6f8;
+      padding: 2rem;
+    }
+    h1, h2 {
+      text-align: center;
+      color: #1e293b;
+    }
+    .form, .summary, .history {
+      max-width: 600px;
+      margin: 2rem auto;
+      background: white;
+      padding: 1.5rem;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    .form input, .form textarea {
+      width: 100%;
+      padding: 0.75rem;
+      margin-bottom: 1rem;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    .form button {
+      width: 100%;
+      padding: 0.75rem;
+      background-color: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .order-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+    .summary, .history {
+      font-size: 0.95rem;
+    }
+    .back-button {
+      display: block;
+      width: 100%;
+      text-align: center;
+      margin-top: 2rem;
+    }
+    .back-button a {
+      text-decoration: none;
+      color: white;
+      background: #1e293b;
+      padding: 0.75rem 1rem;
+      border-radius: 5px;
+      display: inline-block;
+    }
+    .past-order {
+      border-top: 1px solid #ccc;
+      padding-top: 0.5rem;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Checkout</h1>
+
+  <div class="summary" id="order-summary">
+    <h2>Your Cart</h2>
+    <!-- Populated by JS -->
+  </div>
+
+  <div class="form">
+    <h2>Enter Your Details</h2>
+    <input type="text" id="name" placeholder="Full Name" required />
+    <input type="email" id="email" placeholder="Email" required />
+    <input type="tel" id="phone" placeholder="Phone Number" required />
+    <textarea id="address" rows="3" placeholder="Shipping Address" required></textarea>
+    <button onclick="submitOrder()">Place Order</button>
+  </div>
+
+  <div class="history" id="order-history">
+    <h2>Past Orders</h2>
+    <!-- Filled dynamically -->
+  </div>
+
+  <div class="back-button">
+    <a href="index.html">⬅ Back to Home</a>
+  </div>
+
+  <script>
+    const cart = JSON.parse(localStorage.getItem("cart")) || {};
+    const products = [];
+
+    async function loadProducts() {
+      const res = await fetch("https://dummyjson.com/products");
+      const data = await res.json();
+      products.push(...data.products);
+      renderCartSummary();
+      renderOrderHistory();
+    }
+
+    function renderCartSummary() {
+      const container = document.getElementById("order-summary");
+      let total = 0;
+      let html = "<ul style='list-style:none;padding:0;'>";
+      for (let id in cart) {
+        const product = products.find(p => p.id == id);
+        if (product) {
+          const qty = cart[id];
+          total += product.price * qty;
+          html += `<li class="order-item">${product.title} x ${qty} = ₹${product.price * qty}</li>`;
+        }
+      }
+      html += `</ul><strong>Total: ₹${total}</strong>`;
+      container.innerHTML += html;
+    }
+
+    function submitOrder() {
+      const name = document.getElementById("name").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const phone = document.getElementById("phone").value.trim();
+      const address = document.getElementById("address").value.trim();
+
+      if (!name || !email || !phone || !address) {
+        alert("Please fill all fields!");
+        return;
+      }
+
+      const order = {
+        name,
+        email,
+        phone,
+        address,
+        items: { ...cart },
+        timestamp: new Date().toLocaleString()
+      };
+
+      let orders = JSON.parse(localStorage.getItem("orders")) || [];
+      orders.push(order);
+      localStorage.setItem("orders", JSON.stringify(orders));
+
+      // Clear cart
+      localStorage.removeItem("cart");
+      alert("Order placed successfully!");
+      location.reload();
+    }
+
+    function renderOrderHistory() {
+      const history = JSON.parse(localStorage.getItem("orders")) || [];
+      const container = document.getElementById("order-history");
+
+      if (history.length === 0) {
+        container.innerHTML += "<p>No past orders yet.</p>";
+        return;
+      }
+
+      history.reverse().forEach((order, index) => {
+        let html = `<div class="past-order">
+          <strong>${order.name}</strong> (${order.phone})<br/>
+          ${order.address}<br/>
+          <small>${order.timestamp}</small>
+          <ul style='padding-left:1.2rem;'>`;
+
+        for (let id in order.items) {
+          const p = products.find(prod => prod.id == id);
+          if (p) {
+            html += `<li>${p.title} x ${order.items[id]}</li>`;
+          }
+        }
+
+        html += `</ul></div>`;
+        container.innerHTML += html;
+      });
+    }
+
+    window.onload = loadProducts;
+  </script>
+</body>
+</html>

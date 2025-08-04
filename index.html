@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>My Store - Products</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      background-color: #f4f6f8;
+    }
+
+    header {
+      background-color: #1e293b;
+      color: white;
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    header button {
+      background-color: #ef4444;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .controls {
+      padding: 1rem 2rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: center;
+    }
+
+    .controls input,
+    .controls select {
+      padding: 0.5rem;
+      border: 1px solid #d1d5db;
+      border-radius: 5px;
+      font-size: 1rem;
+      min-width: 200px;
+    }
+    #aiSearchBtn {
+  background-color: #6366f1;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  font-size: 1rem;
+  cursor: pointer;
+  display: inline-block;
+  min-width: 200px;
+  text-align: center;
+}
+.place-order-btn {
+  margin-top: 1rem;
+  background-color: #10b981; /* green color */
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1rem;
+  width: 100%;
+  transition: background-color 0.2s ease;
+}
+
+.place-order-btn:hover {
+  background-color: #059669;
+}
+    .product-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 1.5rem;
+      padding: 2rem;
+    }
+    
+    .product {
+      background: white;
+      padding: 1rem;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+      text-align: center;
+      transition: transform 0.2s ease;
+    }
+
+    .product:hover {
+      transform: translateY(-5px);
+    }
+
+    .product img {
+      width: 100%;
+      height: 180px;
+      object-fit: contain;
+      margin-bottom: 1rem;
+    }
+
+    .product h3 {
+      font-size: 1.1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .product p {
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .product button {
+      margin-top: 0.75rem;
+      background-color: #3b82f6;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .cart {
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      background: white;
+      padding: 1rem;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      max-width: 300px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      z-index: 1000;
+    }
+
+    .cart h3 {
+      margin-bottom: 0.5rem;
+      font-size: 1.2rem;
+    }
+
+    .cart-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+      font-size: 0.95rem;
+    }
+
+    .cart-total {
+      font-weight: 600;
+      font-size: 1rem;
+      margin-top: 1rem;
+      text-align: right;
+    }
+
+    .cart-item button {
+      background-color: #ef4444;
+      color: white;
+      border: none;
+      padding: 0.25rem 0.5rem;
+      border-radius: 3px;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+    #loadMoreBtn {
+      background-color: #10b981;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1rem;
+      margin: 1rem auto;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Welcome to My Store</h1>
+    <div id="welcome-user"></div>
+    <button onclick="logout()">Logout</button>
+  </header>
+
+  <div class="controls">
+  <input type="text" id="searchInput" placeholder="Search products..." oninput="filterProducts()" />
+  <select id="categoryFilter" onchange="filterProducts()">
+    <option value="">All Categories</option>
+  </select>
+  <label for="imageUpload" id="aiSearchBtn">🔍 AI Image Search</label>
+  <input type="file" accept="image/*" id="imageUpload" onchange="handleImageUpload()" style="display: none;" />
+  <button id="clearAiFilterBtn" onclick="clearAiFilter()" style="display: none;">Clear AI Filter</button>
+</div>
+  <main>
+    <div id="product-list" class="product-list"></div>
+    <button id="loadMoreBtn" onclick="loadMoreProducts()">Load More</button>
+  </main>
+
+  <div class="cart" id="cart">
+  <h3>Cart</h3>
+  <div id="cart-items"></div>
+  <div class="cart-total" id="cart-total"></div>
+  <a href="checkout.html" id="place-order-link">
+  <button class="place-order-btn" id="placeOrderBtn" disabled>🛒 Place Order</button>
+
+</a>
+</div>
+
+  <script src="ai-image-search.js"></script>
+  <script> 
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyASmK6giOpNZ-EMH61A5F2sIuuKpX0jBBY",
+      authDomain: "e-commerce-website-c4b8c.firebaseapp.com",
+      projectId: "e-commerce-website-c4b8c",
+      storageBucket: "e-commerce-website-c4b8c.appspot.com",
+      messagingSenderId: "913064292748",
+      appId: "1:913064292748:web:674b0a785048606a16a6a9"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+
+    let allProducts = [];
+    let cart = JSON.parse(localStorage.getItem("cart")) || {};
+    let skip = 0;
+    const limit = 20;
+
+    function checkLogin() {
+      auth.onAuthStateChanged((user) => {
+        if (user) {
+          document.getElementById("welcome-user").textContent = `Hi, ${user.email}`;
+          fetchProducts();
+        } else {
+          window.location.href = "login.html";
+        }
+      });
+    }
+
+    function logout() {
+      auth.signOut().then(() => {
+        window.location.href = "login.html";
+      });
+    }
+
+    function fetchProducts(append = false) {
+      fetch(`https://dummyjson.com/products?limit=${limit}&skip=${skip}`)
+        .then(res => res.json())
+        .then(data => {
+          if (append) {
+            allProducts = [...allProducts, ...data.products];
+          } else {
+            allProducts = data.products;
+          }
+          populateCategoryFilter();
+          renderProducts(allProducts);
+          skip += limit;
+
+          if (data.products.length < limit) {
+            document.getElementById("loadMoreBtn").style.display = "none";
+          }
+        })
+        .catch(err => console.error("Error fetching products:", err));
+    }
+
+    function loadMoreProducts() {
+      fetchProducts(true);
+    }
+
+    function renderProducts(products) {
+      const list = document.getElementById("product-list");
+      list.innerHTML = "";
+      products.forEach(p => {
+        const link = document.createElement("a");
+        link.href = `product-details.html?id=${p.id}`;
+        link.className = "product";
+        link.innerHTML = `
+          <img src="${p.thumbnail}" alt="${p.title}">
+          <h3>${p.title}</h3>
+          <p>Price: ₹${p.price}</p>
+          <button onclick="event.preventDefault(); addToCart(${p.id})">Add to Cart</button>
+        `;
+        list.appendChild(link);
+      });
+    }
+
+    function addToCart(id) {
+      cart[id] = (cart[id] || 0) + 1;
+      localStorage.setItem("cart", JSON.stringify(cart));
+      renderCart();
+    }
+
+    function renderCart() {
+  const cartContainer = document.getElementById("cart-items");
+  const cartTotal = document.getElementById("cart-total");
+  const placeOrderBtn = document.getElementById("placeOrderBtn");
+  cartContainer.innerHTML = "";
+  let total = 0;
+  let hasItems = false;
+
+  Object.keys(cart).forEach(id => {
+    const product = allProducts.find(p => p.id == id);
+    if (product) {
+      const quantity = cart[id];
+      total += product.price * quantity;
+      const div = document.createElement("div");
+      div.className = "cart-item";
+      div.innerHTML = `
+        <span>${product.title} (x${quantity})</span>
+        <button onclick="removeFromCart(${id})">Remove</button>
+      `;
+      cartContainer.appendChild(div);
+      hasItems = true;
+    }
+  });
+
+  cartTotal.textContent = hasItems ? `Total: ₹${total}` : "Cart is empty";
+
+  // Enable or disable the place order button
+  if (placeOrderBtn) {
+    placeOrderBtn.disabled = !hasItems;
+  }
+}
+
+
+    function removeFromCart(id) {
+      delete cart[id];
+      localStorage.setItem("cart", JSON.stringify(cart));
+      renderCart();
+    }
+
+    function populateCategoryFilter() {
+      const select = document.getElementById("categoryFilter");
+      const categories = [...new Set(allProducts.map(p => p.category))];
+      select.innerHTML = `<option value="">All Categories</option>`;
+      categories.forEach(cat => {
+        const option = document.createElement("option");
+        option.value = cat;
+        option.textContent = cat;
+        select.appendChild(option);
+      });
+    }
+
+    function filterProducts() {
+      const search = document.getElementById("searchInput").value.toLowerCase();
+      const category = document.getElementById("categoryFilter").value;
+      const filtered = allProducts.filter(p =>
+        p.title.toLowerCase().includes(search) &&
+        (category === "" || p.category === category)
+      );
+      renderProducts(filtered);
+    }
+
+    window.onload = () => {
+  checkLogin();
+  renderCart();
+  loadMobileNetModel(); // This is defined in ai-image-search.js
+};
+document.getElementById("placeOrderBtn").addEventListener("click", function () {
+    if (!this.disabled) {
+      window.location.href = "checkout.html";
+    }
+  });
+  </script>
+</body>
+</html>
+
+
+
+
